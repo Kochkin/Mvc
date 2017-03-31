@@ -75,8 +75,6 @@ namespace Microsoft.Extensions.DependencyInjection
             services.TryAddSingleton<PageArgumentBinder, DefaultPageArgumentBinder>();
 
             services.TryAddSingleton<IActionDescriptorChangeProvider, PageActionDescriptorChangeProvider>();
-
-            services.TryAddSingleton<TempDataPropertyProvider>();
         }
     }
 }
