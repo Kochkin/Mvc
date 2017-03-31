@@ -809,6 +809,22 @@ namespace Microsoft.AspNetCore.Mvc.Core
             => string.Format(CultureInfo.CurrentCulture, GetString("ModelBinding_MissingBindRequiredMember"), p0);
 
         /// <summary>
+        /// A value for the request body was not provided.
+        /// </summary>
+        internal static string ModelBinding_MissingRequestBodyRequiredMember
+        {
+            get { return GetString("ModelBinding_MissingRequestBodyRequiredMember"); }
+        }
+
+        /// <summary>
+        /// A value for the request body was not provided.
+        /// </summary>
+        internal static string FormatModelBinding_MissingRequestBodyRequiredMember()
+        {
+            return GetString("ModelBinding_MissingRequestBodyRequiredMember");
+        }
+
+        /// <summary>
         /// The parameter conversion from type '{0}' to type '{1}' failed because no type converter can convert between these types.
         /// </summary>
         internal static string ValueProviderResult_NoConverterExists

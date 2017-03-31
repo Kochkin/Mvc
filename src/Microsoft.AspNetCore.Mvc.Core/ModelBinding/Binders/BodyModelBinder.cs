@@ -20,6 +20,7 @@ namespace Microsoft.AspNetCore.Mvc.ModelBinding.Binders
     public class BodyModelBinder : IModelBinder
     {
         private readonly IList<IInputFormatter> _formatters;
+        private readonly bool _isBindingRequired;
         private readonly Func<Stream, Encoding, TextReader> _readerFactory;
         private readonly ILogger _logger;
 
@@ -31,8 +32,12 @@ namespace Microsoft.AspNetCore.Mvc.ModelBinding.Binders
         /// The <see cref="IHttpRequestStreamReaderFactory"/>, used to create <see cref="System.IO.TextReader"/>
         /// instances for reading the request body.
         /// </param>
-        public BodyModelBinder(IList<IInputFormatter> formatters, IHttpRequestStreamReaderFactory readerFactory)
-            : this(formatters, readerFactory, loggerFactory: null)
+        /// <param name="isBindingRequired">Specifies whether a null input (e.g., due to an empty request body) should be treated as a validation error.</param>
+        public BodyModelBinder(
+            IList<IInputFormatter> formatters,
+            IHttpRequestStreamReaderFactory readerFactory,
+            bool isBindingRequired
+            ) : this(formatters, readerFactory, loggerFactory: null, isBindingRequired: isBindingRequired)
         {
         }
 
@@ -45,7 +50,12 @@ namespace Microsoft.AspNetCore.Mvc.ModelBinding.Binders
         /// instances for reading the request body.
         /// </param>
         /// <param name="loggerFactory">The <see cref="ILoggerFactory"/>.</param>
-        public BodyModelBinder(IList<IInputFormatter> formatters, IHttpRequestStreamReaderFactory readerFactory, ILoggerFactory loggerFactory)
+        /// <param name="isBindingRequired">Specifies whether a null input (e.g., due to an empty request body) should be treated as a validation error.</param>
+        public BodyModelBinder(
+            IList<IInputFormatter> formatters,
+            IHttpRequestStreamReaderFactory readerFactory,
+            ILoggerFactory loggerFactory,
+            bool isBindingRequired)
         {
             if (formatters == null)
             {
@@ -58,6 +68,7 @@ namespace Microsoft.AspNetCore.Mvc.ModelBinding.Binders
             }
 
             _formatters = formatters;
+            _isBindingRequired = isBindingRequired;
             _readerFactory = readerFactory.CreateReader;
 
             if (loggerFactory != null)
@@ -65,6 +76,11 @@ namespace Microsoft.AspNetCore.Mvc.ModelBinding.Binders
                 _logger = loggerFactory.CreateLogger<BodyModelBinder>();
             }
         }
+
+        /// <summary>
+        /// Gets a flag indicating whether the binder will require non-null input values to be supplied.
+        /// </summary>
+        public bool IsBindingRequired => _isBindingRequired;
 
         /// <inheritdoc />
         public async Task BindModelAsync(ModelBindingContext bindingContext)
@@ -132,7 +148,21 @@ namespace Microsoft.AspNetCore.Mvc.ModelBinding.Binders
                     return;
                 }
 
-                bindingContext.Result = ModelBindingResult.Success(model);
+                if (_isBindingRequired && model == null)
+                {
+                    bindingContext.Result = ModelBindingResult.Failed();
+
+                    var message = bindingContext
+                        .ModelMetadata
+                        .ModelBindingMessageProvider
+                        .MissingRequestBodyRequiredValueAccessor();
+                    bindingContext.ModelState.AddModelError(modelBindingKey, message);
+                }
+                else
+                {
+                    bindingContext.Result = ModelBindingResult.Success(model);
+                }
+
                 return;
             }
             catch (Exception ex)

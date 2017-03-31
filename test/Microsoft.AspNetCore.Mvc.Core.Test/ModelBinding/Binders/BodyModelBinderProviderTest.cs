@@ -71,6 +71,35 @@ namespace Microsoft.AspNetCore.Mvc.ModelBinding.Binders
             Assert.IsType<BodyModelBinder>(result);
         }
 
+        public void GetBinder_ProducesBinderWithIsBindingRequiredTrueByDefault()
+        {
+            // Arrange
+            var provider = CreateProvider(new TestInputFormatter());
+            var context = new TestModelBinderProviderContext(typeof(Person));
+            context.BindingInfo.BindingSource = BindingSource.Body;
+
+            // Act
+            var result = provider.GetBinder(context) as BodyModelBinder;
+
+            // Assert
+            Assert.True(result.IsBindingRequired);
+        }
+
+        public void GetBinder_CanBeConfiguredToProduceBinderWithIsBindingRequiredFalse()
+        {
+            // Arrange
+            var provider = CreateProvider(new TestInputFormatter());
+            var context = new TestModelBinderProviderContext(typeof(Person));
+            context.BindingInfo.BindingSource = BindingSource.Body;
+            provider.IsBindingRequired = false;
+
+            // Act
+            var result = provider.GetBinder(context) as BodyModelBinder;
+
+            // Assert
+            Assert.False(result.IsBindingRequired);
+        }
+
         [Fact]
         public void GetBinder_DoesNotThrowNullReferenceException()
         {
