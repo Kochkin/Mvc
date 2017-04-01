@@ -16,6 +16,23 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures.Internal
 {
     public class SaveTempDataPropertyFilterTest
     {
+        private IList<PropertyHelper> BuildPropertyHelpers<TSubject>()
+        {
+            var subjectType = typeof(TSubject);
+
+            var properties = subjectType.GetProperties(
+                BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
+
+            var result = new List<PropertyHelper>();
+
+            foreach(var property in properties)
+            {
+                result.Add(new PropertyHelper(property));
+            }
+
+            return result;
+        }
+
         [Fact]
         public void SaveTempDataPropertyFilter_PopulatesTempDataWithValuesFromControllerProperty()
         {
@@ -29,17 +46,8 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures.Internal
             var filter = BuildSaveTempDataPropertyFilter(httpContext, tempData);
 
             var controller = new TestController();
-            var controllerType = controller.GetType().GetTypeInfo();
 
-            var propertyHelper1 = new PropertyHelper(controllerType.GetProperty(nameof(TestController.Test)));
-            var propertyHelper2 = new PropertyHelper(controllerType.GetProperty(nameof(TestController.Test2)));
-            var propertyHelpers = new List<PropertyHelper>
-            {
-                propertyHelper1,
-                propertyHelper2,
-            };
-
-            filter.PropertyHelpers = propertyHelpers;
+            filter.PropertyHelpers = BuildPropertyHelpers<TestController>();
             var context = new ActionExecutingContext(
                 new ActionContext
                 {
@@ -75,17 +83,8 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures.Internal
 
             var filter = BuildSaveTempDataPropertyFilter(httpContext, tempData: tempData);
             var controller = new TestController();
-            var controllerType = controller.GetType().GetTypeInfo();
 
-            var propertyHelper1 = new PropertyHelper(controllerType.GetProperty(nameof(TestController.Test)));
-            var propertyHelper2 = new PropertyHelper(controllerType.GetProperty(nameof(TestController.Test2)));
-            var propertyHelpers = new List<PropertyHelper>
-            {
-                propertyHelper1,
-                propertyHelper2,
-            };
-
-            filter.PropertyHelpers = propertyHelpers;
+            filter.PropertyHelpers = BuildPropertyHelpers<TestController>();
 
             var context = new ActionExecutingContext(
                 new ActionContext
@@ -108,13 +107,15 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures.Internal
         }
 
         [Fact]
-        public void LoadAndTrackChanges_SetsPropertyValue()
+        public void ApplyTempDataChanges_SetsPropertyValue()
         {
             // Arrange
             var httpContext = new DefaultHttpContext();
 
-            var tempData = new TempDataDictionary(httpContext, Mock.Of<ITempDataProvider>());
-            tempData["TempDataProperty-Test"] = "Value";
+            var tempData = new TempDataDictionary(httpContext, Mock.Of<ITempDataProvider>())
+            {
+                { "TempDataProperty-Test", "Value" }
+            };
             tempData.Save();
 
             var controller = new TestControllerStrings()
@@ -123,66 +124,14 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures.Internal
             };
 
             var provider = BuildSaveTempDataPropertyFilter(httpContext, tempData: tempData);
-
-
+            provider.PropertyHelpers = BuildPropertyHelpers<TestControllerStrings>();
 
             // Act
-            provider.LoadAndTrackChanges(controller, controller.TempData);
+            provider.ApplyTempDataChanges(controller, httpContext);
 
             // Assert
             Assert.Equal("Value", controller.Test);
             Assert.Null(controller.Test2);
-        }
-
-        [Fact]
-        public void LoadAndTrackChanges_ThrowsInvalidOperationException_PrivateSetter()
-        {
-            // Arrange
-            var httpContext = new DefaultHttpContext();
-            var tempData = new TempDataDictionary(httpContext, Mock.Of<ITempDataProvider>())
-            {
-                {"TempDataProperty-Test", "Value" }
-            };
-
-            var provider = BuildSaveTempDataPropertyFilter(httpContext, tempData: tempData);
-            
-            tempData.Save();
-
-            var controller = new TestController_PrivateSet()
-            {
-                TempData = tempData,
-            };
-
-            // Act & Assert
-            var exception = Assert.Throws<InvalidOperationException>(() =>
-                provider.LoadAndTrackChanges(controller, controller.TempData));
-
-            Assert.Equal("TempData properties must have a public getter and setter.", exception.Message);
-        }
-
-        [Fact]
-        public void LoadAndTrackChanges_ThrowsInvalidOperationException_NonPrimitiveType()
-        {
-            // Arrange
-            var httpContext = new DefaultHttpContext();
-            var tempData = new TempDataDictionary(httpContext, Mock.Of<ITempDataProvider>())
-            {
-                { "TempDataProperty-Test", new object() }
-            };
-            var provider = BuildSaveTempDataPropertyFilter(httpContext, tempData: tempData);
-
-            tempData.Save();
-
-            var controller = new TestController_NonPrimitiveType()
-            {
-                TempData = tempData,
-            };
-
-            // Act & Assert
-            var exception = Assert.Throws<InvalidOperationException>(() =>
-                provider.LoadAndTrackChanges(controller, controller.TempData));
-
-            Assert.Equal("TempData properties must be declared as primitive types or string only.", exception.Message);
         }
 
         private SaveTempDataPropertyFilter BuildSaveTempDataPropertyFilter(
@@ -194,18 +143,6 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures.Internal
                 .Returns(tempData);
 
             return new SaveTempDataPropertyFilter(factory.Object);
-        }
-
-        public class TestController_NonPrimitiveType : Controller
-        {
-            [TempData]
-            public object Test { get; set; }
-        }
-
-        public class TestController_PrivateSet : Controller
-        {
-            [TempData]
-            public string Test { get; private set; }
         }
 
         public class TestControllerStrings : Controller

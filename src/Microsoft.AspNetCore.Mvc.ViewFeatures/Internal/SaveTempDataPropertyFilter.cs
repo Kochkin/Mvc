@@ -6,6 +6,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.Internal;
 
@@ -28,6 +29,10 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures.Internal
 
         public IDictionary<PropertyInfo, object> OriginalValues { get; set; }
 
+        /// <summary>
+        /// Puts the modified values of <see cref="Subject"/> into <paramref name="tempData"/>.
+        /// </summary>
+        /// <param name="tempData">The <see cref="ITempDataDictionary"/> to be updated.</param>
         public void OnTempDataSaving(ITempDataDictionary tempData)
         {
             if (Subject != null && OriginalValues != null)
@@ -47,54 +52,16 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures.Internal
         }
 
         /// <summary>
-        /// Loads and tracks any changes to the properties of the <paramref name="subject"/>.
+        /// Applies values from TempData from <paramref name="httpContext"/> to the <paramref name="subject"/>.
         /// </summary>
-        /// <param name="subject">The properties of the subject are loaded and tracked. May be a <see cref="Controller"/>.</param>
-        /// <param name="tempData">The <see cref="ITempDataDictionary"/>.</param>
-        /// <returns></returns>
-        public IDictionary<PropertyInfo, object> LoadAndTrackChanges(object subject, ITempDataDictionary tempData)
+        /// <param name="subject">The properties of the subject are set based on TempData from
+        /// <paramref name="httpContext"/>. May be a <see cref="Controller"/>.</param>
+        /// <param name="httpContext">The <see cref="HttpContext"/> used to find TempData.</param>
+        public void ApplyTempDataChanges(object subject, HttpContext httpContext)
         {
-            var properties = GetSubjectProperties(subject);
-            var result = new Dictionary<PropertyInfo, object>();
+            var tempData = _factory.GetTempData(httpContext);
 
-            foreach (var property in properties)
-            {
-                var value = tempData[Prefix + property.Name];
-
-                result[property] = value;
-
-                // TODO: Clarify what behavior should be for null values here
-                if (value != null && property.PropertyType.IsAssignableFrom(value.GetType()))
-                {
-                    property.SetValue(subject, value);
-                }
-            }
-
-            return result;
-        }
-
-        private ConcurrentDictionary<Type, IEnumerable<PropertyInfo>> _subjectProperties =
-            new ConcurrentDictionary<Type, IEnumerable<PropertyInfo>>();
-
-        private IEnumerable<PropertyInfo> GetSubjectProperties(object subject)
-        {
-            return _subjectProperties.GetOrAdd(subject.GetType(), subjectType =>
-            {
-                var properties = subjectType.GetRuntimeProperties()
-                    .Where(pi => pi.GetCustomAttribute<TempDataAttribute>() != null);
-
-                if (properties.Any(pi => !(pi.SetMethod != null && pi.SetMethod.IsPublic && pi.GetMethod != null && pi.GetMethod.IsPublic)))
-                {
-                    throw new InvalidOperationException("TempData properties must have a public getter and setter.");
-                }
-
-                if (properties.Any(pi => !(pi.PropertyType.GetTypeInfo().IsPrimitive || pi.PropertyType == typeof(string))))
-                {
-                    throw new InvalidOperationException("TempData properties must be declared as primitive types or string only.");
-                }
-
-                return properties;
-            });
+            SetPropertyVaules(tempData, subject);
         }
 
         public void OnActionExecuting(ActionExecutingContext context)
@@ -109,6 +76,21 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures.Internal
 
             OriginalValues = new Dictionary<PropertyInfo, object>();
 
+            SetPropertyVaules(tempData, Subject);
+        }
+
+        private void SetPropertyVaules(ITempDataDictionary tempData, object subject)
+        {
+            if (PropertyHelpers == null)
+            {
+                return;
+            }
+
+            if (OriginalValues == null)
+            {
+                OriginalValues = new Dictionary<PropertyInfo, object>();
+            }
+
             for (var i = 0; i < PropertyHelpers.Count; i++)
             {
                 var property = PropertyHelpers[i].Property;
@@ -121,7 +103,7 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures.Internal
                 var isReferenceTypeOrNullable = !propertyTypeInfo.IsValueType || Nullable.GetUnderlyingType(property.GetType()) != null;
                 if (value != null || isReferenceTypeOrNullable)
                 {
-                    property.SetValue(Subject, value);
+                    property.SetValue(subject, value);
                 }
             }
         }
