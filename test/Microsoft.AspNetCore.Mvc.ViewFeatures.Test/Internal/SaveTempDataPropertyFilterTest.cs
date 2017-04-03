@@ -1,7 +1,6 @@
 ﻿// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
-using System;
 using System.Collections.Generic;
 using System.Reflection;
 using Microsoft.AspNetCore.Http;
@@ -16,23 +15,6 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures.Internal
 {
     public class SaveTempDataPropertyFilterTest
     {
-        private IList<PropertyHelper> BuildPropertyHelpers<TSubject>()
-        {
-            var subjectType = typeof(TSubject);
-
-            var properties = subjectType.GetProperties(
-                BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
-
-            var result = new List<PropertyHelper>();
-
-            foreach(var property in properties)
-            {
-                result.Add(new PropertyHelper(property));
-            }
-
-            return result;
-        }
-
         [Fact]
         public void SaveTempDataPropertyFilter_PopulatesTempDataWithValuesFromControllerProperty()
         {
@@ -41,7 +23,7 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures.Internal
             var tempData = new TempDataDictionary(httpContext, Mock.Of<ITempDataProvider>())
             {
                 ["TempDataProperty-Test"] = "FirstValue"
-            };            
+            };
 
             var filter = BuildSaveTempDataPropertyFilter(httpContext, tempData);
 
@@ -75,7 +57,6 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures.Internal
         {
             // Arrange
             var httpContext = new DefaultHttpContext();
-
             var tempData = new TempDataDictionary(httpContext, Mock.Of<ITempDataProvider>())
             {
                 ["TempDataProperty-Test"] = "FirstValue"
@@ -132,6 +113,23 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures.Internal
             // Assert
             Assert.Equal("Value", controller.Test);
             Assert.Null(controller.Test2);
+        }
+
+        private IList<PropertyHelper> BuildPropertyHelpers<TSubject>()
+        {
+            var subjectType = typeof(TSubject);
+
+            var properties = subjectType.GetProperties(
+                BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
+
+            var result = new List<PropertyHelper>();
+
+            foreach (var property in properties)
+            {
+                result.Add(new PropertyHelper(property));
+            }
+
+            return result;
         }
 
         private SaveTempDataPropertyFilter BuildSaveTempDataPropertyFilter(
