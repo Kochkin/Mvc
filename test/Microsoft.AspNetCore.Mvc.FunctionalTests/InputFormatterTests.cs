@@ -82,7 +82,7 @@ namespace Microsoft.AspNetCore.Mvc.FunctionalTests
         [Theory]
         [InlineData("application/json", "")]
         [InlineData("application/json", "    ")]
-        public async Task JsonInputFormatter_IsModelStateValid_FalseForEmptyRequestBody(
+        public async Task JsonInputFormatter_ReturnsBadRequest_ForEmptyRequestBody(
             string requestContentType,
             string jsonInput)
         {
