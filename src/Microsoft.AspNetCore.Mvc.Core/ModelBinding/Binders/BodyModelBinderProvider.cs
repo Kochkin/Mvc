@@ -70,17 +70,6 @@ namespace Microsoft.AspNetCore.Mvc.ModelBinding.Binders
             _options = options;
         }
 
-        /// <summary>
-        /// Gets or sets a flag that controls whether the binder should require non-null
-        /// input values to be supplied. Defaults to <c>true</c>.
-        /// </summary>
-        /// <example>
-        /// If <c>true</c>, and an associated <see cref="IInputFormatter"/> supplies <c>null</c>
-        /// as the value to bind (for example, if an incoming POST or PUT request supplies a
-        /// zero-length body), the binder will register a validation error.
-        /// </example>
-        public bool IsBindingRequired { get; set; } = true;
-
         /// <inheritdoc />
         public IModelBinder GetBinder(ModelBinderProviderContext context)
         {
