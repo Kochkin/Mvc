@@ -116,9 +116,9 @@ namespace Microsoft.AspNetCore.Mvc.ModelBinding.Binders
         }
 
         [Theory]
-        [InlineData(true, true)]
-        [InlineData(false, false)]
-        public async Task BindModel_NoInput_SetsModelStateErrorWhenExpected(bool isBindingRequired, bool expectValidationError)
+        [InlineData(false, true)]
+        [InlineData(true, false)]
+        public async Task BindModel_NoInput_SetsModelStateErrorWhenExpected(bool allowEmptyInputSetting, bool expectValidationError)
         {
             // Arrange
             var mockInputFormatter = new Mock<IInputFormatter>();
@@ -136,7 +136,7 @@ namespace Microsoft.AspNetCore.Mvc.ModelBinding.Binders
                 metadataProvider: provider);
             bindingContext.BinderModelName = "custom";
 
-            var binder = CreateBinder(new[] { inputFormatter }, isBindingRequired);
+            var binder = CreateBinder(new[] { inputFormatter }, allowEmptyInputSetting);
 
             // Act
             await binder.BindModelAsync(bindingContext);
@@ -267,7 +267,7 @@ namespace Microsoft.AspNetCore.Mvc.ModelBinding.Binders
             provider.ForType<Person>().BindingDetails(d => d.BindingSource = BindingSource.Body);
             var bindingContext = GetBindingContext(typeof(Person), metadataProvider: provider);
             bindingContext.HttpContext.Request.ContentType = "application/json";
-            var binder = new BodyModelBinder(inputFormatters, new TestHttpRequestStreamReaderFactory(), loggerFactory, isBindingRequired: true);
+            var binder = new BodyModelBinder(inputFormatters, new TestHttpRequestStreamReaderFactory(), loggerFactory);
 
             // Act
             await binder.BindModelAsync(bindingContext);
@@ -294,7 +294,7 @@ namespace Microsoft.AspNetCore.Mvc.ModelBinding.Binders
             var bindingContext = GetBindingContext(typeof(Person), metadataProvider: provider);
             bindingContext.HttpContext.Request.ContentType = "multipart/form-data";
             bindingContext.BinderModelName = bindingContext.ModelName;
-            var binder = new BodyModelBinder(inputFormatters, new TestHttpRequestStreamReaderFactory(), loggerFactory, isBindingRequired: true);
+            var binder = new BodyModelBinder(inputFormatters, new TestHttpRequestStreamReaderFactory(), loggerFactory);
 
             // Act
             await binder.BindModelAsync(bindingContext);
@@ -323,7 +323,7 @@ namespace Microsoft.AspNetCore.Mvc.ModelBinding.Binders
                 typeof(Person),
                 httpContext: httpContext,
                 metadataProvider: provider);
-            var binder = new BodyModelBinder(new List<IInputFormatter>(), new TestHttpRequestStreamReaderFactory(), isBindingRequired: true);
+            var binder = new BodyModelBinder(new List<IInputFormatter>(), new TestHttpRequestStreamReaderFactory());
 
             // Act & Assert (does not throw)
             await binder.BindModelAsync(bindingContext);
@@ -362,11 +362,12 @@ namespace Microsoft.AspNetCore.Mvc.ModelBinding.Binders
             return bindingContext;
         }
 
-        private static BodyModelBinder CreateBinder(IList<IInputFormatter> formatters, bool isBindingRequired = true)
+        private static BodyModelBinder CreateBinder(IList<IInputFormatter> formatters, bool allowEmptyInputInInputFormatter = false)
         {
             var sink = new TestSink();
             var loggerFactory = new TestLoggerFactory(sink, enabled: true);
-            return new BodyModelBinder(formatters, new TestHttpRequestStreamReaderFactory(), loggerFactory, isBindingRequired);
+            var options = new MvcOptions { AllowEmptyInputInInputFormatter = allowEmptyInputInInputFormatter };
+            return new BodyModelBinder(formatters, new TestHttpRequestStreamReaderFactory(), loggerFactory, options);
         }
 
         private class Person

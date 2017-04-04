@@ -20,7 +20,7 @@ namespace Microsoft.AspNetCore.Mvc.ModelBinding.Binders
     public class BodyModelBinder : IModelBinder
     {
         private readonly IList<IInputFormatter> _formatters;
-        private readonly bool _isBindingRequired;
+        private readonly MvcOptions _options;
         private readonly Func<Stream, Encoding, TextReader> _readerFactory;
         private readonly ILogger _logger;
 
@@ -32,12 +32,8 @@ namespace Microsoft.AspNetCore.Mvc.ModelBinding.Binders
         /// The <see cref="IHttpRequestStreamReaderFactory"/>, used to create <see cref="System.IO.TextReader"/>
         /// instances for reading the request body.
         /// </param>
-        /// <param name="isBindingRequired">Specifies whether a null input (e.g., due to an empty request body) should be treated as a validation error.</param>
-        public BodyModelBinder(
-            IList<IInputFormatter> formatters,
-            IHttpRequestStreamReaderFactory readerFactory,
-            bool isBindingRequired
-            ) : this(formatters, readerFactory, loggerFactory: null, isBindingRequired: isBindingRequired)
+        public BodyModelBinder(IList<IInputFormatter> formatters, IHttpRequestStreamReaderFactory readerFactory)
+            : this(formatters, readerFactory, loggerFactory: null)
         {
         }
 
@@ -50,12 +46,29 @@ namespace Microsoft.AspNetCore.Mvc.ModelBinding.Binders
         /// instances for reading the request body.
         /// </param>
         /// <param name="loggerFactory">The <see cref="ILoggerFactory"/>.</param>
-        /// <param name="isBindingRequired">Specifies whether a null input (e.g., due to an empty request body) should be treated as a validation error.</param>
+        public BodyModelBinder(
+            IList<IInputFormatter> formatters,
+            IHttpRequestStreamReaderFactory readerFactory,
+            ILoggerFactory loggerFactory)
+            : this(formatters, readerFactory, loggerFactory, options: null)
+        {
+        }
+
+        /// <summary>
+        /// Creates a new <see cref="BodyModelBinder"/>.
+        /// </summary>
+        /// <param name="formatters">The list of <see cref="IInputFormatter"/>.</param>
+        /// <param name="readerFactory">
+        /// The <see cref="IHttpRequestStreamReaderFactory"/>, used to create <see cref="System.IO.TextReader"/>
+        /// instances for reading the request body.
+        /// </param>
+        /// <param name="loggerFactory">The <see cref="ILoggerFactory"/>.</param>
+        /// <param name="options">The <see cref="MvcOptions"/>.</param>
         public BodyModelBinder(
             IList<IInputFormatter> formatters,
             IHttpRequestStreamReaderFactory readerFactory,
             ILoggerFactory loggerFactory,
-            bool isBindingRequired)
+            MvcOptions options)
         {
             if (formatters == null)
             {
@@ -68,19 +81,15 @@ namespace Microsoft.AspNetCore.Mvc.ModelBinding.Binders
             }
 
             _formatters = formatters;
-            _isBindingRequired = isBindingRequired;
             _readerFactory = readerFactory.CreateReader;
 
             if (loggerFactory != null)
             {
                 _logger = loggerFactory.CreateLogger<BodyModelBinder>();
             }
-        }
 
-        /// <summary>
-        /// Gets a flag indicating whether the binder will require non-null input values to be supplied.
-        /// </summary>
-        public bool IsBindingRequired => _isBindingRequired;
+            _options = options;
+        }
 
         /// <inheritdoc />
         public async Task BindModelAsync(ModelBindingContext bindingContext)
@@ -147,9 +156,10 @@ namespace Microsoft.AspNetCore.Mvc.ModelBinding.Binders
                     // Formatter encountered an error. Do not use the model it returned.
                     return;
                 }
-
-                if (_isBindingRequired && model == null)
+                
+                if (model == null && _options?.AllowEmptyInputInInputFormatter != true)
                 {
+                    // Body model binding is required, but no value was supplied.
                     bindingContext.Result = ModelBindingResult.Failed();
 
                     var message = bindingContext
