@@ -25,7 +25,7 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures.Internal
                 ["TempDataProperty-Test"] = "FirstValue"
             };
 
-            var filter = BuildSaveTempDataPropertyFilter(httpContext, tempData);
+            var filter = CreateSaveTempDataPropertyFilter(httpContext, tempData);
 
             var controller = new TestController();
 
@@ -62,7 +62,7 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures.Internal
                 ["TempDataProperty-Test"] = "FirstValue"
             };
 
-            var filter = BuildSaveTempDataPropertyFilter(httpContext, tempData: tempData);
+            var filter = CreateSaveTempDataPropertyFilter(httpContext, tempData: tempData);
             var controller = new TestController();
 
             filter.PropertyHelpers = BuildPropertyHelpers<TestController>();
@@ -104,11 +104,12 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures.Internal
                 TempData = tempData,
             };
 
-            var provider = BuildSaveTempDataPropertyFilter(httpContext, tempData: tempData);
+            var provider = CreateSaveTempDataPropertyFilter(httpContext, tempData: tempData);
+            provider.Subject = controller;
             provider.PropertyHelpers = BuildPropertyHelpers<TestControllerStrings>();
 
             // Act
-            provider.ApplyTempDataChanges(controller, httpContext);
+            provider.ApplyTempDataChanges(httpContext);
 
             // Assert
             Assert.Equal("Value", controller.Test);
@@ -132,7 +133,7 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures.Internal
             return result;
         }
 
-        private SaveTempDataPropertyFilter BuildSaveTempDataPropertyFilter(
+        private SaveTempDataPropertyFilter CreateSaveTempDataPropertyFilter(
             HttpContext httpContext,
             TempDataDictionary tempData)
         {

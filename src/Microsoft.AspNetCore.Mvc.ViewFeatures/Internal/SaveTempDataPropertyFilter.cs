@@ -50,18 +50,27 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures.Internal
         }
 
         /// <summary>
-        /// Applies values from TempData from <paramref name="httpContext"/> to the <paramref name="subject"/>.
+        /// Applies values from TempData from <paramref name="httpContext"/> to the <see cref="Subject"/>.
         /// </summary>
-        /// <param name="subject">The properties of the subject are set based on TempData from
-        /// <paramref name="httpContext"/>. May be a <see cref="Controller"/>.</param>
         /// <param name="httpContext">The <see cref="HttpContext"/> used to find TempData.</param>
-        public void ApplyTempDataChanges(object subject, HttpContext httpContext)
+        public void ApplyTempDataChanges(HttpContext httpContext)
         {
+            if (Subject == null)
+            {
+                throw new ArgumentNullException(nameof(Subject));
+            }
+
             var tempData = _factory.GetTempData(httpContext);
 
-            SetPropertyVaules(tempData, subject);
+            if (OriginalValues == null)
+            {
+                OriginalValues = new Dictionary<PropertyInfo, object>();
+            }
+
+            SetPropertyVaules(tempData, Subject);
         }
 
+        /// <inheritdoc />
         public void OnActionExecuting(ActionExecutingContext context)
         {
             if (PropertyHelpers == null)
@@ -77,6 +86,11 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures.Internal
             SetPropertyVaules(tempData, Subject);
         }
 
+        /// <inheritdoc />
+        public void OnActionExecuted(ActionExecutedContext context)
+        {
+        }
+
         private void SetPropertyVaules(ITempDataDictionary tempData, object subject)
         {
             if (PropertyHelpers == null)
@@ -84,19 +98,14 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures.Internal
                 return;
             }
 
-            if (OriginalValues == null)
-            {
-                OriginalValues = new Dictionary<PropertyInfo, object>();
-            }
-
             for (var i = 0; i < PropertyHelpers.Count; i++)
             {
-                var property = PropertyHelpers[i].Property;
+                var property = PropertyHelpers[i];
                 var value = tempData[Prefix + property.Name];
 
-                OriginalValues[property] = value;
+                OriginalValues[property.Property] = value;
 
-                var propertyTypeInfo = property.PropertyType.GetTypeInfo();
+                var propertyTypeInfo = property.Property.PropertyType.GetTypeInfo();
 
                 var isReferenceTypeOrNullable = !propertyTypeInfo.IsValueType || Nullable.GetUnderlyingType(property.GetType()) != null;
                 if (value != null || isReferenceTypeOrNullable)
@@ -104,10 +113,6 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures.Internal
                     property.SetValue(subject, value);
                 }
             }
-        }
-
-        public void OnActionExecuted(ActionExecutedContext context)
-        {
         }
     }
 }

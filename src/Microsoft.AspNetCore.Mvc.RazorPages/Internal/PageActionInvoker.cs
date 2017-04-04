@@ -358,9 +358,8 @@ namespace Microsoft.AspNetCore.Mvc.RazorPages.Internal
 
             if (propertyFilter != null)
             {
-                propertyFilter.ApplyTempDataChanges(_page, _pageContext.HttpContext);
-
                 propertyFilter.Subject = _page;
+                propertyFilter.ApplyTempDataChanges(_pageContext.HttpContext);
             }
 
             IActionResult result = null;
