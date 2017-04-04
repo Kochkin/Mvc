@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
@@ -127,7 +128,12 @@ namespace Microsoft.AspNetCore.Mvc.ModelBinding.Binders
             var inputFormatter = mockInputFormatter.Object;
 
             var provider = new TestModelMetadataProvider();
-            provider.ForType<Person>().BindingDetails(d => d.BindingSource = BindingSource.Body);
+            provider.ForType<Person>().BindingDetails(d =>
+            {
+                d.BindingSource = BindingSource.Body;
+                d.ModelBindingMessageProvider.MissingRequestBodyRequiredValueAccessor =
+                    () => "Customized error message";
+            });
 
             var bindingContext = GetBindingContext(
                 typeof(Person),
@@ -147,7 +153,7 @@ namespace Microsoft.AspNetCore.Mvc.ModelBinding.Binders
             // Key is the bindermodelname because this was a top-level binding.
             var entry = Assert.Single(bindingContext.ModelState);
             Assert.Equal("custom", entry.Key);
-            Assert.Single(entry.Value.Errors);
+            Assert.Equal("Customized error message", entry.Value.Errors.Single().ErrorMessage);
         }
 
         [Theory]
