@@ -28,7 +28,7 @@ namespace Microsoft.AspNetCore.Mvc.ModelBinding.Metadata
         /// Error message the model binding system adds when no value is provided for the request body,
         /// but a value is required.
         /// </summary>
-        /// <value>Default <see cref="string"/> is "A value for the request body was not provided.".</value>
+        /// <value>Default <see cref="string"/> is "A non-empty request body is required.".</value>
         Func<string> MissingRequestBodyRequiredValueAccessor { get; }
 
         /// <summary>

@@ -809,7 +809,7 @@ namespace Microsoft.AspNetCore.Mvc.Core
             => string.Format(CultureInfo.CurrentCulture, GetString("ModelBinding_MissingBindRequiredMember"), p0);
 
         /// <summary>
-        /// A value for the request body was not provided.
+        /// A non-empty request body is required.
         /// </summary>
         internal static string ModelBinding_MissingRequestBodyRequiredMember
         {
@@ -817,7 +817,7 @@ namespace Microsoft.AspNetCore.Mvc.Core
         }
 
         /// <summary>
-        /// A value for the request body was not provided.
+        /// A non-empty request body is required.
         /// </summary>
         internal static string FormatModelBinding_MissingRequestBodyRequiredMember()
         {
