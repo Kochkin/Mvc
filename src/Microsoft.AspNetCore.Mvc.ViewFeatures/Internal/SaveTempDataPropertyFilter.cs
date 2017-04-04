@@ -73,11 +73,6 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures.Internal
         /// <inheritdoc />
         public void OnActionExecuting(ActionExecutingContext context)
         {
-            if (PropertyHelpers == null)
-            {
-                throw new ArgumentNullException(nameof(PropertyHelpers));
-            }
-
             Subject = context.Controller;
             var tempData = _factory.GetTempData(context.HttpContext);
 
@@ -95,7 +90,7 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures.Internal
         {
             if (PropertyHelpers == null)
             {
-                return;
+                throw new ArgumentNullException(nameof(PropertyHelpers));
             }
 
             for (var i = 0; i < PropertyHelpers.Count; i++)
