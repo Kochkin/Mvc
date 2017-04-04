@@ -20,9 +20,9 @@ namespace Microsoft.AspNetCore.Mvc.ModelBinding.Binders
     public class BodyModelBinder : IModelBinder
     {
         private readonly IList<IInputFormatter> _formatters;
-        private readonly MvcOptions _options;
         private readonly Func<Stream, Encoding, TextReader> _readerFactory;
         private readonly ILogger _logger;
+        private readonly MvcOptions _options;
 
         /// <summary>
         /// Creates a new <see cref="BodyModelBinder"/>.
@@ -114,12 +114,15 @@ namespace Microsoft.AspNetCore.Mvc.ModelBinding.Binders
 
             var httpContext = bindingContext.HttpContext;
 
+            var allowEmptyInput = _options?.AllowEmptyInputInInputFormatter == true;
+
             var formatterContext = new InputFormatterContext(
                 httpContext,
                 modelBindingKey,
                 bindingContext.ModelState,
                 bindingContext.ModelMetadata,
-                _readerFactory);
+                _readerFactory,
+                allowEmptyInput);
 
             var formatter = (IInputFormatter)null;
             for (var i = 0; i < _formatters.Count; i++)
@@ -156,10 +159,17 @@ namespace Microsoft.AspNetCore.Mvc.ModelBinding.Binders
                     // Formatter encountered an error. Do not use the model it returned.
                     return;
                 }
-                
-                if (model == null && _options?.AllowEmptyInputInInputFormatter != true)
+
+                if (result.IsModelSet)
                 {
-                    // Body model binding is required, but no value was supplied.
+                    bindingContext.Result = ModelBindingResult.Success(model);
+                }
+                else
+                {
+                    // If the input formatter gives a "no value" result, that's always a validation error.
+                    // If instead the input formatter wants to treat the input as optional, it must do so by
+                    // returning InputFormatterResult.Success(defaultForModelType), because input formatters
+                    // are responsible for choosing a default value for the model type.
                     bindingContext.Result = ModelBindingResult.Failed();
 
                     var message = bindingContext
@@ -167,10 +177,6 @@ namespace Microsoft.AspNetCore.Mvc.ModelBinding.Binders
                         .ModelBindingMessageProvider
                         .MissingRequestBodyRequiredValueAccessor();
                     bindingContext.ModelState.AddModelError(modelBindingKey, message);
-                }
-                else
-                {
-                    bindingContext.Result = ModelBindingResult.Success(model);
                 }
 
                 return;

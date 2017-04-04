@@ -410,6 +410,31 @@ namespace Microsoft.AspNetCore.Mvc.Formatters
                 () => formatter.GetSupportedContentTypes("application/json", typeof(object)));
         }
 
+        [Theory]
+        [InlineData(true, true)]
+        [InlineData(false, false)]
+        public async Task ReadAsync_WithEmptyRequest_ReturnsNoValueResultWhenExpected(bool allowEmptyInputValue, bool expectedIsModelSet)
+        {
+            // Arrange
+            var formatter = new TestFormatter();
+            var context = new InputFormatterContext(
+                new DefaultHttpContext(),
+                "",
+                new ModelStateDictionary(),
+                new EmptyModelMetadataProvider().GetMetadataForType(typeof(object)),
+                (s, e) => new StreamReader(s, e),
+                allowEmptyInputValue);
+            context.HttpContext.Request.ContentLength = 0;
+
+            // Act
+            var result = await formatter.ReadAsync(context);
+
+            // Assert
+            Assert.False(result.HasError);
+            Assert.Null(result.Model);
+            Assert.Equal(expectedIsModelSet, result.IsModelSet);
+        }
+
         private class BadConfigurationFormatter : InputFormatter
         {
             public override Task<InputFormatterResult> ReadRequestBodyAsync(InputFormatterContext context)

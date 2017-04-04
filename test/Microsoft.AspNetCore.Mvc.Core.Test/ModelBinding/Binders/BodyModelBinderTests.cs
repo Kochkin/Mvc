@@ -115,17 +115,15 @@ namespace Microsoft.AspNetCore.Mvc.ModelBinding.Binders
             Assert.False(bindingContext.Result.IsModelSet);
         }
 
-        [Theory]
-        [InlineData(false, true)]
-        [InlineData(true, false)]
-        public async Task BindModel_NoInput_SetsModelStateErrorWhenExpected(bool allowEmptyInputSetting, bool expectValidationError)
+        [Fact]
+        public async Task BindModel_NoValueResult_SetsModelStateError()
         {
             // Arrange
             var mockInputFormatter = new Mock<IInputFormatter>();
             mockInputFormatter.Setup(f => f.CanRead(It.IsAny<InputFormatterContext>()))
                 .Returns(true);
             mockInputFormatter.Setup(o => o.ReadAsync(It.IsAny<InputFormatterContext>()))
-                              .Returns(InputFormatterResult.SuccessAsync(null));
+                              .Returns(InputFormatterResult.NoValueAsync());
             var inputFormatter = mockInputFormatter.Object;
 
             var provider = new TestModelMetadataProvider();
@@ -136,29 +134,53 @@ namespace Microsoft.AspNetCore.Mvc.ModelBinding.Binders
                 metadataProvider: provider);
             bindingContext.BinderModelName = "custom";
 
-            var binder = CreateBinder(new[] { inputFormatter }, allowEmptyInputSetting);
+            var binder = CreateBinder(new[] { inputFormatter });
 
             // Act
             await binder.BindModelAsync(bindingContext);
 
             // Assert
-            var expectIsModelSet = !expectValidationError; // If we allow null as a valid input, then IsModelSet==true in that case
-            Assert.Equal(expectIsModelSet, bindingContext.Result.IsModelSet);
             Assert.Null(bindingContext.Result.Model);
+            Assert.False(bindingContext.Result.IsModelSet);
+            Assert.False(bindingContext.ModelState.IsValid);
 
-            if (expectValidationError)
-            {
-                // Key is the bindermodelname because this was a top-level binding.
-                Assert.False(bindingContext.ModelState.IsValid);
-                var entry = Assert.Single(bindingContext.ModelState);
-                Assert.Equal("custom", entry.Key);
-                Assert.Single(entry.Value.Errors);
-            }
-            else
-            {
-                Assert.True(bindingContext.ModelState.IsValid);
-                Assert.Empty(bindingContext.ModelState);
-            }
+            // Key is the bindermodelname because this was a top-level binding.
+            var entry = Assert.Single(bindingContext.ModelState);
+            Assert.Equal("custom", entry.Key);
+            Assert.Single(entry.Value.Errors);
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task BindModel_PassesAllowEmptyInputOptionViaContext(bool allowEmptyInputValue)
+        {
+            // Arrange
+            var mockInputFormatter = new Mock<IInputFormatter>();
+            mockInputFormatter.Setup(f => f.CanRead(It.IsAny<InputFormatterContext>()))
+                .Returns(true);
+            mockInputFormatter.Setup(o => o.ReadAsync(It.IsAny<InputFormatterContext>()))
+                              .Returns(InputFormatterResult.NoValueAsync())
+                              .Verifiable();
+            var inputFormatter = mockInputFormatter.Object;
+
+            var provider = new TestModelMetadataProvider();
+            provider.ForType<Person>().BindingDetails(d => d.BindingSource = BindingSource.Body);
+
+            var bindingContext = GetBindingContext(
+                typeof(Person),
+                metadataProvider: provider);
+            bindingContext.BinderModelName = "custom";
+
+            var binder = CreateBinder(new[] { inputFormatter }, allowEmptyInputValue);
+
+            // Act
+            await binder.BindModelAsync(bindingContext);
+
+            // Assert
+            mockInputFormatter.Verify(formatter => formatter.ReadAsync(
+                It.Is<InputFormatterContext>(ctx => ctx.AllowEmptyInput == allowEmptyInputValue)),
+                Times.Once);
         }
 
         [Fact]
